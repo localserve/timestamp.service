@@ -1,6 +1,6 @@
 # SQL
 
-DataBase is Postgres; running at `jdbc:postgresql://localhost:54003/timestampdb`
+DataBase is Postgres; running at `jdbc:postgresql://localhost:54321/timestampdb`
 
 ## Create `timestamps` table.
 
