@@ -16,7 +16,7 @@ create table timestamps
 );
 
 alter table timestamps
-    owner to "timestamp-db-user";
+    owner to "timestamp_db_user";
 
 create unique index timestamps_id_uindex
     on timestamps (id);
