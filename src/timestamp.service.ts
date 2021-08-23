@@ -7,7 +7,7 @@ const blue = require('@f0c1s/color-blue');
 
 const express = require('express');
 const requestID = require('@m1yh3m/requestid.middleware')().requestid;
-import log, {TypesEnum as LogTypes} from '@f0c1s/node-common-log-lib';
+import log, {TypesEnum as LogSeverity} from '@f0c1s/node-common-log-lib';
 
 import {Client, ClientConfig, QueryResult} from "pg";
 import {TAGS} from '@f0c1s/node-common-log-tag';
@@ -27,7 +27,7 @@ const secretB = sha512('secretB since we are not using keys' + Date.now());
 const secretKeys = [secretA, secretB];
 
 secretKeys.forEach((secret: string, i: number) => {
-    log(TAGS.INFO, `secret ${i}: ${secret}`, LogTypes.LOG);
+    log(TAGS.INFO, `secret ${i}: ${secret}`, LogSeverity.LOG);
 });
 
 
@@ -61,7 +61,7 @@ const timestampdbDbClient: Client = new Client(timestampdbConfig);
 
 timestampdbDbClient.connect()
     .then(() => console.log(`Connected to timestampdbDbClient.`))
-    .catch((e: any) => log(red(TAGS.EXECUTE('timestamp-db-connect')), red(`CONNECTING TO DataBase failed\n${e}`), LogTypes.ERROR));
+    .catch((e: any) => log(red(TAGS.EXECUTE('timestamp-db-connect')), red(`CONNECTING TO DataBase failed\n${e}`), LogSeverity.ERROR));
 
 const appConfig = {httpPort: 54083, httpsPort: 54883};
 
@@ -79,13 +79,13 @@ app.get('/ts', (req: ExtendedRequest, res: Response) => {
         };
         timestampdbDbClient.query(query, (error: Error, result: QueryResult<any>) => {
             if (error) {
-                log(TAGS.INFO, `${req.method} DB timestamp select * query failed. ${JSON.stringify(error, null, 4)}`, LogTypes.WARN);
+                log(TAGS.INFO, `${req.method} DB timestamp select * query failed. ${JSON.stringify(error, null, 4)}`, LogSeverity.WARN);
                 res.sendStatus(503);
             }
             res.json({success: true, timestamps: result.rows});
         });
     } catch (e: any) {
-        log(TAGS.REQUEST, `${req.method} /ts failed. ${e.message}`, LogTypes.WARN);
+        log(TAGS.REQUEST, `${req.method} /ts failed. ${e.message}`, LogSeverity.WARN);
         res.sendStatus(400);
     }
 });
@@ -102,14 +102,14 @@ app.post('/ts', (req: ExtendedRequest, res: Response) => {
         };
         timestampdbDbClient.query(query, (error: Error, _: QueryResult<any>) => {
             if (error) {
-                log(TAGS.INFO, `${req.method} DB timestamp insert query failed. ${JSON.stringify(error, null, 4)}`, LogTypes.WARN);
+                log(TAGS.INFO, `${req.method} DB timestamp insert query failed. ${JSON.stringify(error, null, 4)}`, LogSeverity.WARN);
                 res.sendStatus(503);
             }
             res.json({success: true, requestid});
 
         });
     } catch (e: any) {
-        log(TAGS.REQUEST, `${req.method} /ts failed. ${e.message}`, LogTypes.WARN);
+        log(TAGS.REQUEST, `${req.method} /ts failed. ${e.message}`, LogSeverity.WARN);
         res.sendStatus(400);
     }
 });
@@ -124,7 +124,7 @@ app.INTERVALS = [];
 
 function handleExit() {
     function handleSignal(signal: string | symbol): void {
-        log(TAGS.END, `Received ${signal.toString()}.`, LogTypes.INFO);
+        log(TAGS.END, `Received ${signal.toString()}.`, LogSeverity.INFO);
 
         function clearIntervals() {
             log(TAGS.END, 'Clearing intervals');
@@ -132,13 +132,15 @@ function handleExit() {
                 .forEach((i: Timeout | any) => clearInterval(i));
         }
 
-        function closeDatabases() {
+        function closeDatabasesAndExitProcess() {
             log(TAGS.END, 'Closing database.');
 
-            timestampdbDbClient.end().then(() => console.log('disconnected')).catch((e: Error) => {
-                console.error('CANNOT stop timestampdbDbClient', e);
-                log(TAGS.INFO, 'CANNOT stop timestampdbDbClient', LogTypes.ERROR);
-            });
+            timestampdbDbClient.end()
+                .then(() => log(TAGS.INFO, 'disconnected'))
+                .catch((e: Error) => {
+                    log(TAGS.INFO, `CANNOT stop database client: ${e.message}`, LogSeverity.ERROR);
+                })
+                .finally(() => exitProcess());
         }
 
         function exitProcess() {
@@ -147,8 +149,7 @@ function handleExit() {
         }
 
         clearIntervals();
-        closeDatabases();
-        exitProcess();
+        closeDatabasesAndExitProcess();
     }
 
     process.on('SIGINT', handleSignal);

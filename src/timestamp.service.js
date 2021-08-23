@@ -140,20 +140,21 @@ function handleExit() {
             Object.entries(app.INTERVALS)
                 .forEach(function (i) { return clearInterval(i); });
         }
-        function closeDatabases() {
+        function closeDatabasesAndExitProcess() {
             node_common_log_lib_1.default(node_common_log_tag_1.TAGS.END, 'Closing database.');
-            timestampdbDbClient.end().then(function () { return console.log('disconnected'); }).catch(function (e) {
-                console.error('CANNOT stop timestampdbDbClient', e);
-                node_common_log_lib_1.default(node_common_log_tag_1.TAGS.INFO, 'CANNOT stop timestampdbDbClient', node_common_log_lib_1.TypesEnum.ERROR);
-            });
+            timestampdbDbClient.end()
+                .then(function () { return node_common_log_lib_1.default(node_common_log_tag_1.TAGS.INFO, 'disconnected'); })
+                .catch(function (e) {
+                node_common_log_lib_1.default(node_common_log_tag_1.TAGS.INFO, "CANNOT stop database client: " + e.message, node_common_log_lib_1.TypesEnum.ERROR);
+            })
+                .finally(function () { return exitProcess(); });
         }
         function exitProcess() {
             node_common_log_lib_1.default(node_common_log_tag_1.TAGS.END, 'Exiting process.');
             process.exit(parseInt(signal.toString()));
         }
         clearIntervals();
-        closeDatabases();
-        exitProcess();
+        closeDatabasesAndExitProcess();
     }
     process.on('SIGINT', handleSignal);
     process.on('SIGTERM', handleSignal);
